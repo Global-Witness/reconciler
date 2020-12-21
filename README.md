@@ -6,7 +6,3 @@ This package aims to provide helper functions for accessing APIs compatible with
 
 * [`rrefine`](https://github.com/vpnagraj/rrefine) provides R functions for working with OpenRefine's internal API—for example, transferring data in and out of an OpenRefine project.
 * [`refinr`](https://github.com/ChrisMuir/refinr) implements some of the clustering algorithms from OpenRefine in R.
-
-## To do
-
-* Chunk longer requests to get around request size limits.

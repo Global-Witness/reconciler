@@ -9,7 +9,8 @@ reconcile(
   endpoint,
   query_col,
   property_cols = NULL,
-  limit = 10,
+  query_limit = 10,
+  match_limit = 10,
   matches_only = FALSE
 )
 }
@@ -24,8 +25,12 @@ if required}
 \item{property_cols}{A vector of column names to use for additional
 properties (optional)}
 
-\item{limit}{The maximum number of reconciliation matches to return for each
-candidate—defaults to 10}
+\item{query_limit}{The maximum number of candidates to submit with each
+query—defaults to 10. Try a lower number if the API returns a 413 Payload
+Too Large response}
+
+\item{match_limit}{The maximum number of reconciliation matches to return for
+each candidate—defaults to 10}
 
 \item{matches_only}{Whether to return reconciliation matches on their own,
 without candidate data—defaults to "FALSE"}

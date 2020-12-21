@@ -14,5 +14,6 @@ Depends:
   stringr,
   tidyr,
   purrr,
-  jsonlite
-RoxygenNote: 7.1.0
+  jsonlite,
+  glue
+RoxygenNote: 7.1.1
