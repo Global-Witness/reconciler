@@ -82,9 +82,9 @@ reconcile <- function(data, endpoint, query_col, property_cols = NULL, limit = 1
 
   results <-
     get_results(endpoint, payload) %>%
-    map_dfr(tibble, .id = "query_id") %>%
-    unnest_longer(`<list>`) %>%
-    unnest_wider(`<list>`)
+    map_dfr(~tibble(data = .x), .id = "query_id") %>%
+    unnest_longer(data) %>%
+    unnest_wider(data)
 
   if(matches_only) {
     results
