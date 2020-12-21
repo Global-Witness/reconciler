@@ -1,0 +1,18 @@
+Package: reconciler
+Type: Package
+Title: Reconciliation Service API helper functions
+Version: 0.1.0
+Author: Louis Goddard
+Maintainer: Louis Goddard <lgoddard@globalwitness.org>
+Description: Helper functions for accessing APIs compatible with the Reconciliation Service API standard
+License: GNU General Public License v3.0
+Encoding: UTF-8
+LazyData: true
+Depends:
+  dplyr,
+  httr,
+  stringr,
+  tidyr,
+  purrr,
+  jsonlite
+RoxygenNote: 7.1.0
