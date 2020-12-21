@@ -1,42 +1,32 @@
-build_query <- function(query, properties, limit) {
-  payload <- list(query = query)
+build_query <- function(data, query_col, property_cols, type, limit) {
 
-  if(!missing(properties)) {
-    payload$properties <- map2(names(properties), properties,
-      function(pid, v) {
-        list(pid = pid, v = v)
-      }
-    )
+  payload <- select(data, query = query_col, property_cols)
+
+  if(!missing(property_cols)) {
+    payload$properties <-
+      pmap(payload, function(...) {
+        row <- list(...)
+        map2(names(row[property_cols]), row[property_cols], function(pid, v) {
+          list(pid = pid, v = v)
+        })
+      })
+  }
+
+  if(!missing(type)) {
+    payload$type <- type
   }
 
   if(!missing(limit)) {
     payload$limit <- limit
   }
 
-  payload
-}
-
-build_query_df <- function(data, query_col, property_cols = NULL, limit = 10) {
-  payload <- data %>%
-    select(query = query_col, property_cols) %>%
-    pmap(function(...) {
-      row <- list(...)
-      properties <- row[names(row) != "query"]
-      if(length(properties) > 0) {
-        build_query(
-          query = row$query,
-          properties = properties,
-          limit = limit)
-      } else {
-        build_query(
-          query = row$query,
-          limit = limit)
-      }
-    })
+  payload <- payload %>%
+    select(-property_cols) %>%
+    transpose()
 
   names(payload) <-
     seq(0, length(payload) - 1) %>%
-    map_chr(~str_c("q", .x))
+    str_c("q", .)
 
   payload
 }
@@ -70,13 +60,14 @@ parse_results <- function(results) {
 #' @param query_col The name of the column to use for the main query
 #' @param property_cols A vector of column names to use for additional
 #'   properties (optional)
-#' @param query_limit The maximum number of candidates to submit with each
-#'   query—defaults to 10. Try a lower number if the API returns a 413 Payload
-#'   Too Large response
+#' @param type The type of entity to reconcile against (optional)
 #' @param match_limit The maximum number of reconciliation matches to return for
-#'   each candidate—defaults to 10
+#'   each candidate (optional)
+#' @param query_limit The maximum number of candidates to submit with each
+#'   query (optional)—defaults to 10. Try a lower number if the API returns a 413 Payload
+#'   Too Large response
 #' @param matches_only Whether to return reconciliation matches on their own,
-#'   without candidate data—defaults to "FALSE"
+#'   without candidate data (optional)—defaults to "FALSE"
 #' @return The original data frame with reconciliation matches as additional
 #'   columns, or a data frame of matches on their own if matches_only is
 #'   "TRUE".
@@ -93,7 +84,7 @@ parse_results <- function(results) {
 #'     query_col = "name",
 #'     property_cols = c("jurisdiction_code", "country_code")) %>%
 #'  filter(match_score >= 75)
-reconcile <- function(data, endpoint, query_col, property_cols = NULL, query_limit = 10, match_limit = 10, matches_only = FALSE) {
+reconcile <- function(data, endpoint, query_col, property_cols = NULL, type = NULL, match_limit = NULL, query_limit = 10, matches_only = FALSE) {
 
   data %>%
     split(rep(1:ceiling(nrow(data) / query_limit), each = query_limit)[1:nrow(data)]) %>%
@@ -101,7 +92,7 @@ reconcile <- function(data, endpoint, query_col, property_cols = NULL, query_lim
 
       cat(glue("Reconciling \"{chunk[[query_col]][1]}\"—\"{chunk[[query_col]][nrow(chunk)]}\"... "))
 
-      payload <- build_query_df(chunk, query_col, property_cols, match_limit)
+      payload <- build_query(chunk, query_col, property_cols, type, match_limit)
       results <- payload %>%
         send_request(endpoint) %>%
         parse_results()

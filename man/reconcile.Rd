@@ -9,8 +9,9 @@ reconcile(
   endpoint,
   query_col,
   property_cols = NULL,
+  type = NULL,
+  match_limit = NULL,
   query_limit = 10,
-  match_limit = 10,
   matches_only = FALSE
 )
 }
@@ -25,15 +26,17 @@ if required}
 \item{property_cols}{A vector of column names to use for additional
 properties (optional)}
 
-\item{query_limit}{The maximum number of candidates to submit with each
-query—defaults to 10. Try a lower number if the API returns a 413 Payload
-Too Large response}
+\item{type}{The type of entity to reconcile against (optional)}
 
 \item{match_limit}{The maximum number of reconciliation matches to return for
-each candidate—defaults to 10}
+each candidate (optional)}
+
+\item{query_limit}{The maximum number of candidates to submit with each
+query (optional)—defaults to 10. Try a lower number if the API returns a 413 Payload
+Too Large response}
 
 \item{matches_only}{Whether to return reconciliation matches on their own,
-without candidate data—defaults to "FALSE"}
+without candidate data (optional)—defaults to "FALSE"}
 }
 \value{
 The original data frame with reconciliation matches as additional
