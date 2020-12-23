@@ -90,7 +90,7 @@ reconcile <- function(data, endpoint, query_col, property_cols = NULL, type = NU
     split(rep(1:ceiling(nrow(data) / query_limit), each = query_limit)[1:nrow(data)]) %>%
     map_dfr(function(chunk) {
 
-      cat(glue("Reconciling \"{chunk[[query_col]][1]}\"—\"{chunk[[query_col]][nrow(chunk)]}\"... "))
+      cat(glue("Reconciling candidates \"{chunk[[query_col]][1]}\" to \"{chunk[[query_col]][nrow(chunk)]}\"... "))
 
       payload <- build_query(chunk, query_col, property_cols, type, match_limit)
       results <- payload %>%
