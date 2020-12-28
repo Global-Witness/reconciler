@@ -44,8 +44,8 @@ send_request <- function(payload, endpoint) {
 
 parse_results <- function(results) {
   results %>%
+    map("result") %>%
     map_dfr(~tibble(data = .x), .id = "query_id") %>%
-    unnest_longer(data) %>%
     unnest_wider(data)
 }
 
