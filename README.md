@@ -10,3 +10,4 @@ This package aims to provide helper functions for accessing APIs compatible with
 ## To do
 
 * Work out a neater way to call `build_query()` with no optional arguments from the main function.
+* Error-handling!
