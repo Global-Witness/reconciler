@@ -13,7 +13,7 @@ build_query <- function(data, query_col, property_cols, type, limit) {
   }
 
   if(!missing(type)) {
-    payload[["type"]] <- type
+    payload[["type"]] <- str_c(type, collapse = ",")
   }
 
   if(!missing(limit)) {
@@ -60,12 +60,13 @@ parse_results <- function(results) {
 #' @param query_col The name of the column to use for the main query
 #' @param property_cols A vector of column names to use for additional
 #'   properties (optional)
-#' @param type The type of entity to reconcile against (optional)
+#' @param type A vector giving one or a number of entity types to reconcile
+#'   against (optional)
 #' @param match_limit The maximum number of reconciliation matches to return for
 #'   each candidate (optional)
 #' @param query_limit The maximum number of candidates to submit with each
-#'   query (optional)—defaults to 10. Try a lower number if the API returns a 413 Payload
-#'   Too Large response
+#'   query (optional)—defaults to 10. Try a lower number if the API returns a
+#'   413 Payload Too Large response
 #' @param matches_only Whether to return reconciliation matches on their own,
 #'   without candidate data (optional)—defaults to "FALSE"
 #' @return The original data frame with reconciliation matches as additional
