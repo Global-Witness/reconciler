@@ -31,24 +31,6 @@ build_query <- function(data, query_col, property_cols, type, limit) {
   payload
 }
 
-send_request <- function(payload, endpoint) {
-  response <-
-    POST(
-      url = endpoint,
-      body = list(queries = toJSON(payload, auto_unbox = TRUE)))
-
-  response %>%
-    content("text", encoding = "UTF-8") %>%
-    fromJSON(simplifyVector = FALSE)
-}
-
-parse_results <- function(results) {
-  results %>%
-    map("result") %>%
-    map_dfr(~tibble(data = .x), .id = "query_id") %>%
-    unnest_wider(data)
-}
-
 #' Reconcile a data frame against an external data source
 #'
 #' This is the primary function for matching data against a reconciliation
@@ -91,25 +73,40 @@ reconcile <- function(data, endpoint, query_col, property_cols = NULL, type = NU
     split(rep(1:ceiling(nrow(data) / query_limit), each = query_limit)[1:nrow(data)]) %>%
     map_dfr(function(chunk) {
 
-      cat(glue("Reconciling candidates \"{chunk[[query_col]][1]}\" to \"{chunk[[query_col]][nrow(chunk)]}\"... "))
+      message(glue("Reconciling candidates \"{chunk[[query_col]][1]}\" to \"{chunk[[query_col]][nrow(chunk)]}\"... "))
 
       payload <- build_query(chunk, query_col, property_cols, type, match_limit)
-      results <- payload %>%
-        send_request(endpoint) %>%
-        parse_results()
 
-      cat("✓\n")
+      response <-
+        POST(
+          url = endpoint,
+          body = list(queries = toJSON(payload, auto_unbox = TRUE)))
 
-      if(matches_only) {
-        results
+      if(status_code(response) == 200) {
+        results <- response %>%
+          content("text", encoding = "UTF-8") %>%
+          fromJSON(simplifyVector = FALSE) %>%
+          map("result") %>%
+          map_dfr(~tibble(data = .x), .id = "query_id") %>%
+          unnest_wider(data)
+
+        if(matches_only) {
+          results
+        } else {
+          chunk %>%
+            as_tibble() %>%
+            mutate(query_id = names(payload)) %>%
+            left_join(
+              rename_at(results, vars(-query_id), ~str_c("match_", .x)),
+              by = "query_id") %>%
+            select(-query_id)
+        }
       } else {
-        chunk %>%
-          as_tibble() %>%
-          mutate(query_id = names(payload)) %>%
-          left_join(
-            rename_at(results, vars(-query_id), ~str_c("match_", .x)),
-            by = "query_id") %>%
-          select(-query_id)
+        warning(glue(str_c(
+          "Reconcilation of candidates ",
+          "\"{chunk[[query_col]][1]}\" to \"{chunk[[query_col]][nrow(chunk)]}\" ",
+          "failed with status code {status_code(response)}")))
+        NULL
       }
     })
 }
