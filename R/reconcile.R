@@ -33,9 +33,9 @@ build_query <- function(data, query_col, property_cols, type, limit) {
 
 send_request <- function(payload, endpoint) {
   response <-
-    GET(
+    POST(
       url = endpoint,
-      query = list(queries = toJSON(payload, auto_unbox = TRUE)))
+      body = list(queries = toJSON(payload, auto_unbox = TRUE)))
 
   response %>%
     content("text", encoding = "UTF-8") %>%
