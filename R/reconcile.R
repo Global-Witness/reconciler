@@ -3,7 +3,7 @@ build_query <- function(data, query_col, property_cols, type, limit) {
   payload <- select(data, query = query_col, property_cols)
 
   if(!missing(property_cols)) {
-    payload$properties <-
+    payload[["properties"]] <-
       pmap(payload, function(...) {
         row <- list(...)
         map2(names(row[property_cols]), row[property_cols], function(pid, v) {
@@ -13,11 +13,11 @@ build_query <- function(data, query_col, property_cols, type, limit) {
   }
 
   if(!missing(type)) {
-    payload$type <- type
+    payload[["type"]] <- type
   }
 
   if(!missing(limit)) {
-    payload$limit <- limit
+    payload[["limit"]] <- limit
   }
 
   payload <- payload %>%
