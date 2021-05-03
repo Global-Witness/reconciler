@@ -15,5 +15,6 @@ Depends:
   tidyr,
   purrr,
   jsonlite,
-  glue
+  glue,
+  urltools
 RoxygenNote: 7.1.1

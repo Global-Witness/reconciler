@@ -31,18 +31,48 @@ build_query <- function(data, query_col, property_cols, type, limit) {
   payload
 }
 
+check_authentication <- function(endpoint) {
+  response <- GET(endpoint)
+  if(status_code(response) == 200) {
+    content(response, "parsed")[["authentication"]]
+  }
+}
+
+make_request <- function(endpoint, authentication, credentials, payload) {
+
+  url <- endpoint
+
+  if(!is.null(authentication) && !is.null(credentials)) {
+    if(authentication[["type"]] == "apiKey" && authentication[["in"]] == "query") {
+      url <- glue("{endpoint}?{authentication[[\"name\"]]}={credentials[1]}")
+    }
+  }
+
+  response <- POST(
+    url = url,
+    body = list(queries = toJSON(payload, auto_unbox = TRUE)))
+
+  if(status_code(response) == 429 && !is.null(credentials[2])) {
+    make_request(endpoint, authentication, tail(credentials, -1), payload)
+  } else {
+    response
+  }
+}
+
 #' Reconcile a data frame against an external data source
 #'
 #' This is the primary function for matching data against a reconciliation
 #' endpoint using the \href{https://reconciliation-api.github.io/specs/latest/}{Reconciliation Service API standard}.
 #'
 #' @param data A data frame of candidates for reconciliation, one per row
-#' @param endpoint The URL of the reconciliation API endpoint, including API key
-#'   if required
+#' @param endpoint The URL of the reconciliation API endpoint
+#' @param credentials A character vector giving one or more API keys (optional).
+#'   If more than one is provided, keys will be automatically cycled when the
+#'   client receives a 429 Resource Exhausted response
 #' @param query_col The name of the column to use for the main query
-#' @param property_cols A vector of column names to use for additional
+#' @param property_cols A character vector of column names to use for additional
 #'   properties (optional)
-#' @param type A vector giving one or a number of entity types to reconcile
+#' @param type A character vector giving one or a number of entity types to reconcile
 #'   against (optional)
 #' @param match_limit The maximum number of reconciliation matches to return for
 #'   each candidate (optional)
@@ -67,46 +97,57 @@ build_query <- function(data, query_col, property_cols, type, limit) {
 #'     query_col = "name",
 #'     property_cols = c("jurisdiction_code", "country_code")) %>%
 #'  filter(match_score >= 75)
-reconcile <- function(data, endpoint, query_col, property_cols = NULL, type = NULL, match_limit = NULL, query_limit = 10, matches_only = FALSE) {
+reconcile <- function(data, endpoint, credentials = NULL, query_col, property_cols = NULL, type = NULL, match_limit = NULL, query_limit = 10, matches_only = FALSE) {
+
+  message("Checking if authentication is required...")
+  authentication <- check_authentication(endpoint)
+
+  reconcile_chunk <- function(chunk) {
+
+    message(glue("Reconciling candidates \"{chunk[[query_col]][1]}\" to \"{chunk[[query_col]][nrow(chunk)]}\"... "))
+
+    payload  <- build_query(chunk, query_col, property_cols, type, match_limit)
+    response <- make_request(endpoint, authentication, credentials, payload)
+
+    if(!is.null(authentication) && !is.null(credentials[1])) {
+      if(authentication[["type"]] == "apiKey" && authentication[["in"]] == "query") {
+        credentials <-
+          credentials[
+            match(
+              param_get(response[["request"]][["url"]], "api_token"),
+              credentials):length(credentials)]
+      }
+    }
+
+    if(status_code(response) == 200) {
+      results <- response %>%
+        content("text", encoding = "UTF-8") %>%
+        fromJSON(simplifyVector = FALSE) %>%
+        map("result") %>%
+        map_dfr(~tibble(data = .x), .id = "query_id") %>%
+        unnest_wider(data)
+
+      if(matches_only) {
+        results
+      } else {
+        chunk %>%
+          as_tibble() %>%
+          mutate(query_id = names(payload)) %>%
+          left_join(
+            rename_at(results, vars(-query_id), ~str_c("match_", .x)),
+            by = "query_id") %>%
+          select(-query_id)
+      }
+    } else {
+      warning(glue(str_c(
+        "Reconcilation of candidates ",
+        "\"{chunk[[query_col]][1]}\" to \"{chunk[[query_col]][nrow(chunk)]}\" ",
+        "failed with status code {status_code(response)}")))
+      NULL
+    }
+  }
 
   data %>%
     split(rep(1:ceiling(nrow(data) / query_limit), each = query_limit)[1:nrow(data)]) %>%
-    map_dfr(function(chunk) {
-
-      message(glue("Reconciling candidates \"{chunk[[query_col]][1]}\" to \"{chunk[[query_col]][nrow(chunk)]}\"... "))
-
-      payload <- build_query(chunk, query_col, property_cols, type, match_limit)
-
-      response <-
-        POST(
-          url = endpoint,
-          body = list(queries = toJSON(payload, auto_unbox = TRUE)))
-
-      if(status_code(response) == 200) {
-        results <- response %>%
-          content("text", encoding = "UTF-8") %>%
-          fromJSON(simplifyVector = FALSE) %>%
-          map("result") %>%
-          map_dfr(~tibble(data = .x), .id = "query_id") %>%
-          unnest_wider(data)
-
-        if(matches_only) {
-          results
-        } else {
-          chunk %>%
-            as_tibble() %>%
-            mutate(query_id = names(payload)) %>%
-            left_join(
-              rename_at(results, vars(-query_id), ~str_c("match_", .x)),
-              by = "query_id") %>%
-            select(-query_id)
-        }
-      } else {
-        warning(glue(str_c(
-          "Reconcilation of candidates ",
-          "\"{chunk[[query_col]][1]}\" to \"{chunk[[query_col]][nrow(chunk)]}\" ",
-          "failed with status code {status_code(response)}")))
-        NULL
-      }
-    })
+    map_dfr(reconcile_chunk)
 }
