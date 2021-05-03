@@ -103,19 +103,25 @@ reconcile <- function(data, endpoint, credentials = NULL, query_col, property_co
   message("Checking if authentication is required...")
   authentication <- check_authentication(endpoint)
 
-  reconcile_chunk <- function(chunk) {
+  chunks <- split(data, rep(1:ceiling(nrow(data) / query_limit), each = query_limit)[1:nrow(data)])
+  output <- vector(mode = "list", length = length(chunks))
+  i <- 0
+
+  for(chunk in chunks) {
+
+    i <- i + 1
 
     message(glue("Reconciling candidates \"{chunk[[query_col]][1]}\" to \"{chunk[[query_col]][nrow(chunk)]}\"... "))
 
     payload  <- build_query(chunk, query_col, property_cols, type, match_limit)
     response <- make_request(endpoint, authentication, credentials, payload)
 
-    if(!is.null(authentication) && !is.null(credentials[1])) {
+    if(!is.null(authentication) && !is.null(credentials)) {
       if(authentication[["type"]] == "apiKey" && authentication[["in"]] == "query") {
         credentials <-
           credentials[
             match(
-              param_get(response[["request"]][["url"]], "api_token"),
+              param_get(response[["request"]][["url"]], authentication[["name"]]),
               credentials):length(credentials)]
       }
     }
@@ -129,15 +135,16 @@ reconcile <- function(data, endpoint, credentials = NULL, query_col, property_co
         unnest_wider(data)
 
       if(matches_only) {
-        results
+        output[[i]] <- results
       } else {
-        chunk %>%
-          as_tibble() %>%
-          mutate(query_id = names(payload)) %>%
-          left_join(
-            rename_at(results, vars(-query_id), ~str_c("match_", .x)),
-            by = "query_id") %>%
-          select(-query_id)
+        output[[i]] <-
+          chunk %>%
+            as_tibble() %>%
+            mutate(query_id = names(payload)) %>%
+            left_join(
+              rename_at(results, vars(-query_id), ~str_c("match_", .x)),
+              by = "query_id") %>%
+            select(-query_id)
       }
     } else {
       warning(glue(str_c(
@@ -148,7 +155,5 @@ reconcile <- function(data, endpoint, credentials = NULL, query_col, property_co
     }
   }
 
-  data %>%
-    split(rep(1:ceiling(nrow(data) / query_limit), each = query_limit)[1:nrow(data)]) %>%
-    map_dfr(reconcile_chunk)
+  bind_rows(output)
 }
