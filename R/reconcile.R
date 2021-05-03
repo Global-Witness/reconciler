@@ -66,9 +66,10 @@ make_request <- function(endpoint, authentication, credentials, payload) {
 #'
 #' @param data A data frame of candidates for reconciliation, one per row
 #' @param endpoint The URL of the reconciliation API endpoint
-#' @param credentials A character vector giving one or more API keys (optional).
-#'   If more than one is provided, keys will be automatically cycled when the
-#'   client receives a 429 Resource Exhausted response
+#' @param credentials A character vector giving one or more authentication
+#'  credentials, e.g. API keys or tokens (optional). If more than one is
+#'  provided, keys will be automatically cycled when the client receives a 429
+#'  Resource Exhausted response
 #' @param query_col The name of the column to use for the main query
 #' @param property_cols A character vector of column names to use for additional
 #'   properties (optional)
