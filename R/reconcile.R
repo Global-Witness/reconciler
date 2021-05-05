@@ -94,7 +94,8 @@ make_request <- function(endpoint, authentication, credentials, payload) {
 #'
 #' gw_companies %>%
 #'   reconcile(
-#'     endpoint = "https://reconcile.opencorporates.com?api_token=TOKEN",
+#'     endpoint = "https://reconcile.opencorporates.com",
+#'     credentials = "API_KEY_HERE",
 #'     query_col = "name",
 #'     property_cols = c("jurisdiction_code", "country_code")) %>%
 #'  filter(match_score >= 75)
