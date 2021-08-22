@@ -132,20 +132,27 @@ reconcile <- function(data, endpoint, credentials = NULL, query_col, property_co
         content("text", encoding = "UTF-8") %>%
         fromJSON(simplifyVector = FALSE) %>%
         map("result") %>%
-        map_dfr(~tibble(data = .x), .id = "query_id") %>%
-        unnest_wider(data)
+        discard(is.null)
 
-      if(matches_only) {
-        output[[i]] <- results
+      if(length(results) > 0) {
+        results <- results %>%
+          map_dfr(~tibble(data = .x), .id = "query_id") %>%
+          unnest_wider(data)
+
+        if(matches_only) {
+          output[[i]] <- results
+        } else {
+          output[[i]] <-
+            chunk %>%
+              as_tibble() %>%
+              mutate(query_id = names(payload)) %>%
+              inner_join(
+                rename_at(results, vars(-query_id), ~str_c("match_", .x)),
+                by = "query_id") %>%
+              select(-query_id)
+        }
       } else {
-        output[[i]] <-
-          chunk %>%
-            as_tibble() %>%
-            mutate(query_id = names(payload)) %>%
-            left_join(
-              rename_at(results, vars(-query_id), ~str_c("match_", .x)),
-              by = "query_id") %>%
-            select(-query_id)
+        output[[i]] <- NULL
       }
     } else {
       warning(glue(str_c(
