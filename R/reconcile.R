@@ -52,7 +52,7 @@ make_request <- function(endpoint, authentication, credentials, payload) {
     url = url,
     body = list(queries = toJSON(payload, auto_unbox = TRUE)))
 
-  if(status_code(response) == 429 && !is.null(credentials[2])) {
+  if(status_code(response) == 429 && length(credentials) > 1) {
     make_request(endpoint, authentication, tail(credentials, -1), payload)
   } else {
     response
@@ -159,7 +159,7 @@ reconcile <- function(data, endpoint, credentials = NULL, query_col, property_co
         "Reconcilation of candidates ",
         "\"{chunk[[query_col]][1]}\" to \"{chunk[[query_col]][nrow(chunk)]}\" ",
         "failed with status code {status_code(response)}")))
-      NULL
+      break
     }
   }
 
