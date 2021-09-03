@@ -52,7 +52,7 @@ make_request <- function(endpoint, authentication, credentials, payload) {
     url = url,
     body = list(queries = toJSON(payload, auto_unbox = TRUE)))
 
-  if(status_code(response) == 429 && !is.null(credentials[2])) {
+  if(status_code(response) == 429 && length(credentials) > 1) {
     make_request(endpoint, authentication, tail(credentials, -1), payload)
   } else {
     response
